@@ -1,7 +1,7 @@
 import json
 import base64
 import asyncio
-from app.core import process_audio_logic
+from app import core
 
 def lambda_handler(event, context):
-    return asyncio.run(process_audio_logic(event))
+    return asyncio.run(core.process_audio_logic(event))

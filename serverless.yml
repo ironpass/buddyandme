@@ -9,6 +9,9 @@ provider:
   runtime: python3.8
   region: ap-southeast-1
   stage: dev
+  apiGateway:
+    binaryMediaTypes:
+      - 'application/octet-stream'
   environment:
     OPENAI_API_KEY: ${param:OPENAI_API_KEY}
 
@@ -29,8 +32,3 @@ package:
 
 plugins:
   - serverless-python-requirements
-
-custom:
-  apiGateway:
-    binaryMediaTypes:
-      - 'application/octet-stream'

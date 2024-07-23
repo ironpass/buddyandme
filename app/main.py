@@ -1,6 +1,9 @@
 import socket
-from fastapi import FastAPI, Request, Response
-from .core import process_audio_logic
+from fastapi import FastAPI, Request, Response, HTTPException
+from dotenv import load_dotenv
+load_dotenv()
+
+from . import core
 
 app = FastAPI()
 
@@ -10,7 +13,18 @@ async def upload(request: Request):
     event = {
         "body": event
     }
-    response = await process_audio_logic(event)
+    
+    response = await core.process_audio_logic(event)
+    
+    if isinstance(response, dict) and 'statusCode' in response and 'body' in response:
+        if response['statusCode'] != 200:
+            raise HTTPException(status_code=response['statusCode'], detail=response['body'])
+        return Response(
+            content=response['body'],
+            media_type="application/json",
+            status_code=response['statusCode']
+        )
+    
     return Response(
         content=response,
         media_type="application/octet-stream",
