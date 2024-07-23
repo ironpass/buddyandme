@@ -1,0 +1,36 @@
+org: buddyandme
+app: buddyandme
+service: buddyandme-service
+
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  runtime: python3.8
+  region: ap-southeast-1
+  stage: dev
+  environment:
+    OPENAI_API_KEY: ${param:OPENAI_API_KEY}
+
+functions:
+  app:
+    handler: lambda_function.lambda_handler
+    events:
+      - http:
+          path: /
+          method: post
+          integration: lambda
+
+package:
+  exclude:
+    - node_modules/**
+    - venv/**
+    - __pycache__/**
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  apiGateway:
+    binaryMediaTypes:
+      - 'application/octet-stream'
