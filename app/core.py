@@ -8,7 +8,6 @@ import datetime
 import boto3
 from botocore.exceptions import ClientError
 
-
 # Environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", 'UserMessages')
@@ -90,8 +89,8 @@ def update_user_session(user_id, messages):
     except ClientError as e:
         print("UPDATE_USER_SESSION: ", e.response['Error']['Message'])
 
-def limit_messages(messages, max_messages=10):
-    return messages[-max_messages:]
+def limit_messages(messages, max_pairs=10):
+    return messages[-max_pairs * 2:]
 
 async def process_audio_logic(event):
     try:
@@ -120,7 +119,7 @@ async def process_audio_logic(event):
             "timestamp": datetime.datetime.utcnow().isoformat()
         })
 
-        # Limit the number of messages
+        # Limit the number of messages to the last 10 user-assistant pairs
         messages = limit_messages(messages)
 
         # Prepend the system prompt
