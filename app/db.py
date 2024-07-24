@@ -3,9 +3,15 @@ import os
 from botocore.exceptions import ClientError
 
 DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", 'UserMessages')
-ENDPOINT_URL = 'http://localhost:8000'
+# Use the localhost endpoint if running locally, otherwise use the default AWS endpoint
+ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT_URL", None)
 
-dynamodb = boto3.resource('dynamodb', endpoint_url=ENDPOINT_URL)
+# Create the DynamoDB resource with or without the endpoint URL
+if ENDPOINT_URL:
+    dynamodb = boto3.resource('dynamodb', endpoint_url=ENDPOINT_URL)
+else:
+    dynamodb = boto3.resource('dynamodb')
+
 table = dynamodb.Table(DYNAMODB_TABLE)
 
 def get_user_session(user_id):
