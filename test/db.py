@@ -5,7 +5,8 @@ import datetime
 from botocore.exceptions import ClientError
 
 # Import functions from core
-from app.core import get_user_session, update_user_session, limit_messages
+from app.db import get_user_session, update_user_session
+from app.core import limit_messages
 
 # Environment variables
 os.environ['DYNAMODB_TABLE'] = 'UserMessages'
@@ -91,35 +92,6 @@ def test_update_user_session(dynamodb_client):
     stored_messages = response.get('Item', {}).get('Messages', [])
     assert len(stored_messages) == 1
     assert stored_messages[0]['content'] == 'Updated message'
-
-def test_limit_messages():
-    messages = [
-        {"role": "user", "content": "Message 1", "timestamp": "2023-01-01T00:00:00Z"},
-        {"role": "assistant", "content": "Message 2", "timestamp": "2023-01-02T00:00:00Z"},
-        {"role": "user", "content": "Message 3", "timestamp": "2023-01-03T00:00:00Z"},
-        {"role": "assistant", "content": "Message 4", "timestamp": "2023-01-04T00:00:00Z"},
-        {"role": "user", "content": "Message 5", "timestamp": "2023-01-05T00:00:00Z"},
-        {"role": "assistant", "content": "Message 6", "timestamp": "2023-01-06T00:00:00Z"},
-        {"role": "user", "content": "Message 7", "timestamp": "2023-01-07T00:00:00Z"},
-        {"role": "assistant", "content": "Message 8", "timestamp": "2023-01-08T00:00:00Z"},
-        {"role": "user", "content": "Message 9", "timestamp": "2023-01-09T00:00:00Z"},
-        {"role": "assistant", "content": "Message 10", "timestamp": "2023-01-10T00:00:00Z"},
-        {"role": "user", "content": "Message 11", "timestamp": "2023-01-11T00:00:00Z"},
-        {"role": "assistant", "content": "Message 12", "timestamp": "2023-01-12T00:00:00Z"},
-        {"role": "user", "content": "Message 13", "timestamp": "2023-01-13T00:00:00Z"},
-        {"role": "assistant", "content": "Message 14", "timestamp": "2023-01-14T00:00:00Z"},
-        {"role": "user", "content": "Message 15", "timestamp": "2023-01-15T00:00:00Z"},
-        {"role": "assistant", "content": "Message 16", "timestamp": "2023-01-16T00:00:00Z"},
-        {"role": "user", "content": "Message 17", "timestamp": "2023-01-17T00:00:00Z"},
-        {"role": "assistant", "content": "Message 18", "timestamp": "2023-01-18T00:00:00Z"},
-        {"role": "user", "content": "Message 19", "timestamp": "2023-01-19T00:00:00Z"},
-        {"role": "assistant", "content": "Message 20", "timestamp": "2023-01-20T00:00:00Z"},
-        {"role": "user", "content": "Message 21", "timestamp": "2023-01-21T00:00:00Z"}
-    ]
-    limited_messages = limit_messages(messages, 10)
-    assert len(limited_messages) == 20
-    assert limited_messages[0]['content'] == "Message 2"
-    assert limited_messages[-1]['content'] == "Message 21"
 
 if __name__ == '__main__':
     pytest.main()

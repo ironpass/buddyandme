@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, Response, HTTPException
 from dotenv import load_dotenv
 load_dotenv()
 
-from . import core
+from app import core
 
 app = FastAPI()
 
