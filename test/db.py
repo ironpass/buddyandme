@@ -11,10 +11,10 @@ from app.core import limit_messages
 # Environment variables
 os.environ['DYNAMODB_TABLE'] = 'UserMessages'
 DYNAMODB_TABLE = os.getenv('DYNAMODB_TABLE', 'UserMessages')
-ENDPOINT_URL = 'http://localhost:8000'
+DYNAMODB_ENDPOINT_URL = os.getenv('DYNAMODB_ENDPOINT_URL', 'http://localhost:8000')
 
 # Initialize DynamoDB client
-dynamodb = boto3.resource('dynamodb', endpoint_url=ENDPOINT_URL)
+dynamodb = boto3.resource('dynamodb', endpoint_url=DYNAMODB_ENDPOINT_URL)
 
 @pytest.fixture(scope='module')
 def dynamodb_client():
