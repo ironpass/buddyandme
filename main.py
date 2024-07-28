@@ -7,7 +7,7 @@ from app import core
 
 app = FastAPI()
 
-@app.post("/upload")
+@app.post("/")
 async def upload(request: Request):
     event = await request.json()
     event = {
