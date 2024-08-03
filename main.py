@@ -26,8 +26,8 @@ async def upload(request: Request):
         )
     
     return Response(
-        content=response,
-        media_type="application/octet-stream",
+        content=bytes(response),
+        media_type="audio/mpeg",
         status_code=200
     )
 

@@ -3,7 +3,7 @@ import base64
 import json
 import aiohttp
 from .db import get_user_session, update_user_session
-from .audio_processing import add_wav_header, amplify_audio
+from .audio_processing import add_wav_header, amplify_audio, compress_to_mp3
 from .gpt_requests import send_gpt_request, send_transcription_request
 from .tts_requests import send_tts_request
 
@@ -64,9 +64,9 @@ async def process_audio_logic(event):
 
         tts_audio_data = await send_tts_request(gpt_text)
         amplified_audio_data = amplify_audio(tts_audio_data, factor=20)
-        final_wav_data = add_wav_header(amplified_audio_data, sample_rate=20000, num_channels=1, bits_per_sample=16)
+        mp3_data = compress_to_mp3(amplified_audio_data)
 
-        return final_wav_data
+        return mp3_data
 
     except aiohttp.ClientResponseError as e:
         return {

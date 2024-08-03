@@ -11,7 +11,7 @@ provider:
   stage: dev
   apiGateway:
     binaryMediaTypes:
-      - 'application/octet-stream'
+      - 'audio/mpeg'
   environment:
     OPENAI_API_KEY: ${param:OPENAI_API_KEY}
     DYNAMODB_TABLE: UserMessagesTable
@@ -22,10 +22,17 @@ provider:
         - dynamodb:PutItem
       Resource:
         - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}
+    - Effect: Allow
+      Action:
+        - lambda:GetLayerVersion
+      Resource:
+        - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:2
 
 functions:
   app:
     handler: lambda_function.lambda_handler
+    layers:
+      - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:2
     events:
       - http:
           path: /
@@ -54,3 +61,8 @@ package:
 
 plugins:
   - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    layer: true
