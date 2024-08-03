@@ -37,7 +37,7 @@ functions:
       - http:
           path: /
           method: post
-          integration: lambda
+          integration: lambda-proxy
 
 resources:
   Resources:

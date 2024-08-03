@@ -1,4 +1,3 @@
-#include <WiFi.h>
 #include <WiFiManager.h>
 #include <HTTPClient.h>
 #include "Base64.h"
@@ -6,9 +5,32 @@
 #include <AudioGeneratorMP3.h>
 #include <AudioOutputI2S.h>
 #include <AudioFileSourceHTTPStreamPost.h>
+#include <WiFiClientSecure.h>
 
 // Server URL
-const char* serverName = "http://192.168.1.39:8002";
+const char* serverName = "https://or1nhpgnhk.execute-api.ap-southeast-1.amazonaws.com/dev";
+const char* root_ca = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n" \
+"ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6\n" \
+"b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL\n" \
+"MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv\n" \
+"b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj\n" \
+"ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM\n" \
+"9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw\n" \
+"IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6\n" \
+"VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L\n" \
+"93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm\n" \
+"jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC\n" \
+"AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA\n" \
+"A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI\n" \
+"U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs\n" \
+"N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv\n" \
+"o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU\n" \
+"5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy\n" \
+"rqXRfboQnoZsG4q5WTP468SQvvG5\n" \
+"-----END CERTIFICATE-----\n";
+WiFiClientSecure client;
 
 // Define pins
 #define BUTTON_PIN 6
@@ -64,6 +86,8 @@ void setupWiFi() {
   Serial.println("Connected to WiFi!");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+
+  client.setCACert(root_ca); // Set the root CA for SSL
 }
 
 void initAudioModule() {
@@ -132,16 +156,21 @@ void IRAM_ATTR buttonReleasedISR() {
 }
 
 void sendAudioAndPlay(const char* audioData, size_t audioDataLen) {
+  // Get the board's unique ID
+  String userId = String(ESP.getEfuseMac()); // Using the MAC address as a unique ID
+
   // Prepare custom headers
   std::vector<String> headers = {
     "Content-Type: application/json",
+    "Accept: audio/mpeg", // Add Accept header for audio/mpeg
     "Authorization: Bearer YOUR_ACCESS_TOKEN"
   };
 
-  // Construct JSON payload
+  // Construct JSON payload with user_id
   const char* jsonPrefix = "{\"audio_data\": \"";
+  const char* userIdField = "\", \"user_id\": \"";
   const char* jsonSuffix = "\"}";
-  size_t jsonDataLen = strlen(jsonPrefix) + audioDataLen + strlen(jsonSuffix) + 1;
+  size_t jsonDataLen = strlen(jsonPrefix) + audioDataLen + strlen(userIdField) + userId.length() + strlen(jsonSuffix) + 1;
 
   // Allocate buffer for the full JSON data
   char* jsonData = (char*)ps_malloc(jsonDataLen);
@@ -149,10 +178,10 @@ void sendAudioAndPlay(const char* audioData, size_t audioDataLen) {
     Serial.println("Failed to allocate memory for JSON data");
     return;
   }
-  snprintf(jsonData, jsonDataLen, "%s%s%s", jsonPrefix, audioData, jsonSuffix);
+  snprintf(jsonData, jsonDataLen, "%s%s%s%s%s", jsonPrefix, audioData, userIdField, userId.c_str(), jsonSuffix);
 
-  // Open the audio stream with custom headers
-  file = new AudioFileSourceHTTPStreamPost(serverName, jsonData, 10000, headers);
+  // Open the audio stream with custom headers and secure client
+  file = new AudioFileSourceHTTPStreamPost(serverName, jsonData, 10000, headers, &client);
   mp3->begin(file, out);
 
   while (mp3->isRunning()) {
