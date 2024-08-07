@@ -63,8 +63,8 @@ async def process_audio_logic(event):
         update_user_session(user_id, messages)
 
         tts_audio_data = await send_tts_request(gpt_text)
-        amplified_audio_data = amplify_audio(tts_audio_data, factor=20)
-        mp3_data = compress_to_mp3(amplified_audio_data)
+        amplified_audio_data = amplify_audio(tts_audio_data, factor=10)
+        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000)
 
         return mp3_data
 

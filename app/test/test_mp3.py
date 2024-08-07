@@ -3,7 +3,7 @@ import io
 
 def get_sample_mp3():
     # Load an MP3 file
-    audio = AudioSegment.from_file("example.mp3")
+    audio = AudioSegment.from_file("app/test/11-2.mp3")
     audio = audio.set_channels(1)
     audio = audio.set_frame_rate(32000)
     mp3_io = io.BytesIO()
