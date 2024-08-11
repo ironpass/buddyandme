@@ -23,7 +23,7 @@ def amplify_audio(pcm_data, factor=2):
         audio[i:i+2] = sample.to_bytes(2, byteorder='little', signed=True)
     return bytes(audio)
 
-def compress_to_mp3(pcm_data, sample_rate=44100, num_channels=1, bitrate='16k', trim_silence=False):
+def compress_to_mp3(pcm_data, sample_rate=44100, num_channels=1, bitrate='32k', trim_silence=False):
     """
     Compresses PCM data to MP3 format with reduced size and optional silence trimming.
 
@@ -47,7 +47,7 @@ def compress_to_mp3(pcm_data, sample_rate=44100, num_channels=1, bitrate='16k', 
 
     mp3_io = io.BytesIO()
 
-    audio.export(mp3_io, format="mp3", bitrate=bitrate)
+    audio.export(mp3_io, format="mp3", bitrate=bitrate, codec='libmp3lame', parameters=["-q:a", "2"])
 
     mp3_data = mp3_io.getvalue()
     
