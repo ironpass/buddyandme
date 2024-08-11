@@ -3,9 +3,9 @@ import base64
 import json
 import aiohttp
 from .db import get_user_session, update_user_session
-from .audio_processing import add_wav_header, amplify_audio, compress_to_mp3
+from .audio_processing import add_wav_header, amplify_pcm_audio, compress_to_mp3
 from .gpt_requests import send_gpt_request, send_transcription_request
-from .tts_requests import send_tts_request
+from .tts_requests import send_openai_tts_request, send_azure_tts_request
 
 SYSTEM_PROMPT = {
     "role": "system",
@@ -62,9 +62,9 @@ async def process_audio_logic(event):
 
         update_user_session(user_id, messages)
 
-        tts_audio_data = await send_tts_request(gpt_text)
-        amplified_audio_data = amplify_audio(tts_audio_data, factor=20)
-        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=32000, trim_silence=True)
+        tts_audio_data = await send_azure_tts_request(gpt_text)
+        amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=5)
+        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='192k' ,trim_silence=True)
 
         return mp3_data
 
