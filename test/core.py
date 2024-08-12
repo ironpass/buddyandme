@@ -36,13 +36,13 @@ def mock_responses():
 @pytest.mark.asyncio
 @patch('app.core.get_user_session')
 @patch('app.core.update_user_session')
-@patch('app.core.send_transcription_request')
+@patch('app.core.send_whisper_stt_request')
 @patch('app.core.send_gpt_request')
 @patch('app.core.send_tts_request')
-async def test_process_audio_logic(mock_send_tts_request, mock_send_gpt_request, mock_send_transcription_request, mock_update_user_session, mock_get_user_session, event, mock_responses):
+async def test_process_audio_logic(mock_send_tts_request, mock_send_gpt_request, mock_send_whisper_stt_request, mock_update_user_session, mock_get_user_session, event, mock_responses):
     transcription_response, gpt_response, tts_response = mock_responses
 
-    mock_send_transcription_request.return_value = transcription_response
+    mock_send_whisper_stt_request.return_value = transcription_response
     mock_send_gpt_request.return_value = gpt_response
     mock_send_tts_request.return_value = tts_response
     mock_get_user_session.return_value = []
@@ -56,20 +56,20 @@ async def test_process_audio_logic(mock_send_tts_request, mock_send_gpt_request,
 
     mock_get_user_session.assert_called_once_with('test_user')
     mock_update_user_session.assert_called_once()
-    mock_send_transcription_request.assert_called_once()
+    mock_send_whisper_stt_request.assert_called_once()
     mock_send_gpt_request.assert_called_once()
     mock_send_tts_request.assert_called_once()
 
 @pytest.mark.asyncio
 @patch('app.core.get_user_session')
 @patch('app.core.update_user_session')
-@patch('app.core.send_transcription_request')
+@patch('app.core.send_whisper_stt_request')
 @patch('app.core.send_gpt_request')
 @patch('app.core.send_tts_request')
-async def test_process_audio_logic_scenario(mock_send_tts_request, mock_send_gpt_request, mock_send_transcription_request, mock_update_user_session, mock_get_user_session, event, mock_responses):
+async def test_process_audio_logic_scenario(mock_send_tts_request, mock_send_gpt_request, mock_send_whisper_stt_request, mock_update_user_session, mock_get_user_session, event, mock_responses):
     transcription_response, gpt_response, tts_response = mock_responses
 
-    mock_send_transcription_request.return_value = transcription_response
+    mock_send_whisper_stt_request.return_value = transcription_response
     mock_send_gpt_request.return_value = gpt_response
     mock_send_tts_request.return_value = tts_response
 
@@ -117,7 +117,7 @@ async def test_process_audio_logic_scenario(mock_send_tts_request, mock_send_gpt
 
     mock_get_user_session.assert_called_with('test_user')
     mock_update_user_session.assert_called()
-    mock_send_transcription_request.assert_called()
+    mock_send_whisper_stt_request.assert_called()
     mock_send_gpt_request.assert_called()
     mock_send_tts_request.assert_called()
 

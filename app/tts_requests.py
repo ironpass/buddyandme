@@ -7,7 +7,7 @@ OPENAI_API_BASE = "https://api.openai.com/v1"
 
 # Environment variables for Azure TTS
 AZURE_API_KEY = os.getenv("AZURE_API_KEY")
-AZURE_REGION = os.getenv("AZURE_REGION")  # e.g., "eastus"
+AZURE_REGION = os.getenv("AZURE_REGION")
 
 async def send_openai_tts_request(gpt_text):
     """Send TTS request to OpenAI API."""

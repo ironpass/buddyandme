@@ -4,7 +4,8 @@ import json
 import aiohttp
 from .db import get_user_session, update_user_session
 from .audio_processing import add_wav_header, amplify_pcm_audio, compress_to_mp3
-from .gpt_requests import send_gpt_request, send_transcription_request
+from .stt_requests import send_whisper_stt_request, send_azure_stt_request, send_deepgram_stt_request
+from .llm_requests import send_gpt_request
 from .tts_requests import send_openai_tts_request, send_azure_tts_request
 
 SYSTEM_PROMPT = {
@@ -31,9 +32,9 @@ async def process_audio_logic(event):
 
         raw_audio_data = base64.b64decode(body['audio_data'])
         user_id = body.get('user_id', 'default_user')
-
-        wav_data = add_wav_header(raw_audio_data)
-        transcription_response = await send_transcription_request(wav_data)
+        wav_data = add_wav_header(raw_audio_data, sample_rate=15000)
+        
+        transcription_response = await send_azure_stt_request(wav_data)
         transcription = transcription_response.get("text", "")
         print("TRANSCRIPTION: ", transcription)
 
