@@ -38,34 +38,38 @@ async def process_audio_logic(event):
         transcription = transcription_response.get("text", "")
         print("TRANSCRIPTION: ", transcription)
 
-        messages = get_user_session(user_id)
-        messages = limit_messages(messages)
-        messages.append({
-            "role": "user",
-            "content": transcription,
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        })
+        # messages = get_user_session(user_id)
+        # messages = limit_messages(messages)
+        # messages.append({
+        #     "role": "user",
+        #     "content": transcription,
+        #     "timestamp": datetime.datetime.utcnow().isoformat()
+        # })
         
-        # Prepare messages with SYSTEM_PROMPT
-        api_messages = add_system_prompt(messages)
+        # # Prepare messages with SYSTEM_PROMPT
+        # api_messages = add_system_prompt(messages)
 
-        gpt_response = await send_gpt_request(api_messages)
-        gpt_text = gpt_response["choices"][0]["message"]["content"].strip()
-        messages.append({
-            "role": "assistant",
-            "content": gpt_text,
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        })
-        print("GPT_RESPONSE: ", gpt_text)
+        # gpt_response = await send_gpt_request(api_messages)
+        # gpt_text = gpt_response["choices"][0]["message"]["content"].strip()
+        # messages.append({
+        #     "role": "assistant",
+        #     "content": gpt_text,
+        #     "timestamp": datetime.datetime.utcnow().isoformat()
+        # })
+        # print("GPT_RESPONSE: ", gpt_text)
 
-        if messages and messages[0] == SYSTEM_PROMPT:
-            messages.pop(0)
+        # if messages and messages[0] == SYSTEM_PROMPT:
+        #     messages.pop(0)
 
-        update_user_session(user_id, messages)
+        # update_user_session(user_id, messages)
 
-        tts_audio_data = await send_azure_tts_request(gpt_text)
-        amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=5)
-        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='192k' ,trim_silence=True)
+        # tts_audio_data = await send_azure_tts_request(gpt_text)
+        # amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=5)
+        # mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='192k' ,trim_silence=True)
+
+        # Write the binary data to an MP3 file
+        with open('app/test/long_story.mp3', 'rb') as f:
+            mp3_data = f.read()
 
         return mp3_data
 
