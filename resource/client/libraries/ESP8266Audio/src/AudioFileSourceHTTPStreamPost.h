@@ -20,6 +20,7 @@ public:
   virtual bool isOpen();
   virtual uint32_t getSize();
   virtual uint32_t getPos();
+  virtual int getLastHttpCode();
   enum { STATUS_HTTPFAIL=2, STATUS_DISCONNECTED, STATUS_RECONNECTING, STATUS_RECONNECTED, STATUS_NODATA };
 
 protected:
@@ -29,6 +30,7 @@ protected:
   char saveURL[256];
   uint32_t size;
   uint32_t pos;
+  int lastHttpCode;
   std::vector<String> headers;
   WiFiClient* client; // client for HTTPS
 

@@ -2,13 +2,13 @@
 
 // Constructor for initializing the class without parameters
 AudioFileSourceHTTPStreamPost::AudioFileSourceHTTPStreamPost()
-    : postData(nullptr), timeout(5000), size(0), pos(0), client(nullptr) {
+    : postData(nullptr), timeout(5000), size(0), pos(0), client(nullptr), lastHttpCode(-1) {
   saveURL[0] = 0;
 }
 
 // Constructor for initializing the class with parameters
 AudioFileSourceHTTPStreamPost::AudioFileSourceHTTPStreamPost(const char* url, const char* postData, int timeout, const std::vector<String>& headers, WiFiClient* client)
-    : postData(postData), timeout(timeout), size(0), pos(0), headers(headers), client(client) {
+    : postData(postData), timeout(timeout), size(0), pos(0), headers(headers), client(client), lastHttpCode(-1) {
   saveURL[0] = 0;
   open(url, postData, timeout, headers);
 }
@@ -18,7 +18,7 @@ bool AudioFileSourceHTTPStreamPost::open(const char* url, const char* postData, 
   pos = 0;
   this->timeout = timeout;
   this->headers = headers;
-  this->postData = postData;
+  this->postData = postData; // Use the provided postData directly
 
   if (client) {
     http.begin(*client, url); // Use the secure client for HTTPS
@@ -36,10 +36,10 @@ bool AudioFileSourceHTTPStreamPost::open(const char* url, const char* postData, 
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 #endif
 
-  int code = http.POST((uint8_t*)this->postData, strlen(this->postData));
-  if (code != HTTP_CODE_OK) {
+  lastHttpCode = http.POST((uint8_t*)this->postData, strlen(this->postData));
+  if (lastHttpCode != HTTP_CODE_OK) {
     http.end();
-    Serial.println("ERROR: Can't open HTTP request");
+    Serial.printf("ERROR: Can't open HTTP request, code: %d\n", lastHttpCode);
     return false;
   }
 
@@ -170,4 +170,9 @@ uint32_t AudioFileSourceHTTPStreamPost::getSize() {
 // Get the current position in the HTTP stream
 uint32_t AudioFileSourceHTTPStreamPost::getPos() {
   return pos;
+}
+
+// Get the last HTTP status code
+int AudioFileSourceHTTPStreamPost::getLastHttpCode() {
+  return lastHttpCode;
 }

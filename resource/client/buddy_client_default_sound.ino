@@ -5,13 +5,15 @@
 #include <AudioOutputI2S.h>
 #include <AudioFileSourceHTTPStreamPost.h>
 #include <AudioFileSourceSPIFFS.h>
-#include <WiFiClientSecure.h>
+// #include <WiFiClientSecure.h>
+#include <WiFiClient.h>
 #include <SPIFFS.h>
 
-WiFiClientSecure client;
+WiFiClient client;
 
 // Server URL
-const char* serverName = "https://or1nhpgnhk.execute-api.ap-southeast-1.amazonaws.com/dev";
+// const char* serverName = "https://or1nhpgnhk.execute-api.ap-southeast-1.amazonaws.com/dev";
+const char* serverName = "http://192.168.1.37:8002";
 const char* root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n" \
@@ -88,7 +90,7 @@ void setup() {
   setupWiFi();
 
   // Set the root CA for SSL
-  client.setCACert(root_ca);
+  // client.setCACert(root_ca);
 }
 
 void setupWiFi() {
@@ -107,7 +109,7 @@ void setupWiFi() {
     WiFi.begin(); // Use the saved credentials to connect
 
     unsigned long startTime = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) { // Try for 10 seconds
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 5000) { // Try for 5 seconds
       delay(500);
       Serial.print(".");
     }
@@ -284,18 +286,23 @@ void sendAudioAndPlay() {
  
   // Open the audio stream with custom headers
   fileHTTP = new AudioFileSourceHTTPStreamPost(serverName, jsonData, 100000, headers, &client);
-  mp3->begin(fileHTTP, out);
+  if (fileHTTP->getLastHttpCode() != HTTP_CODE_OK) {
+    Serial.println("HTTP POST request failed, playing error audio...");
+    playAudioFromSPIFFS("/wah.mp3"); // Play an error audio if the POST request failed
+  } else {
+    // Begin playback if the POST request was successful
+    mp3->begin(fileHTTP, out);
 
-  while (mp3->isRunning()) {
-    bool looping = mp3->loop();
-    if (!looping) {
-      out->flush();
-      mp3->stop();
-      Serial.println("MP3 playback stopped");
+    while (mp3->isRunning()) {
+      bool looping = mp3->loop();
+      if (!looping) {
+        out->flush();
+        mp3->stop();
+        Serial.println("MP3 playback stopped");
+      }
     }
+    Serial.println("MP3 playback finished");
   }
-  Serial.println("MP3 playback finished");
-
   // Clean up
   delete fileHTTP;
   fileHTTP = nullptr;
