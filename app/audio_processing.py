@@ -42,11 +42,11 @@ def compress_to_mp3(pcm_data, sample_rate=44100, num_channels=1, bitrate='32k', 
     
     # Trim silence if enabled
     if trim_silence:
-        audio = audio.strip_silence(silence_len=1000, silence_thresh=-50)
+        audio = audio.strip_silence(silence_thresh=-100)
 
     mp3_io = io.BytesIO()
 
-    audio.export(mp3_io, format="mp3", bitrate=bitrate, codec='libmp3lame', parameters=["-q:a", "2"])
+    audio.export(mp3_io, format="mp3", bitrate=bitrate, codec='libmp3lame', parameters=["-q:a", "9"])
 
     mp3_data = mp3_io.getvalue()
     

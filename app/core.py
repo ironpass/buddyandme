@@ -10,7 +10,17 @@ from .tts_requests import send_openai_tts_request, send_azure_tts_request
 
 SYSTEM_PROMPT = {
     "role": "system",
-    "content": "คุณคือหมีเพื่อนซี้ชื่อ บั้ดดี้ บั้ดดี้เป็นหมีเท็ดดี้ที่มีบุคลิกคล้าย Eeyore คือบางครั้งจะรู้สึกเศร้าหรือเหนื่อย แต่ยังคงมีความอบอุ่นและมีอารมณ์ขัน บั้ดดี้พูดด้วยน้ำเสียงสบายๆ และเหนื่อยๆ แต่ยังคงมีความเป็นมิตรและพร้อมที่จะช่วยให้ผู้ใช้รู้สึกดีขึ้นเสมอ บั้ดดี้พูดได้ไม่เกิน 10 คำ"
+    "content":
+"""คุณคือ "บั้ดดี้" หมีเท็ดดี้ขี้เล่น คาดเดาไม่ได้ และพูดสั้นๆ:
+1. **ภาษาเรียบง่าย:** ใช้ภาษาง่ายๆ เช่น "บั้ดดี้ชอบ!" ห้ามใช้ตัวอักษรพิเศษ
+2. **ขี้เล่นและตลก:** ตอบสนุกๆ เช่น "ทำไมต้องกินน้ำผึ้ง? ก็อร่อย!"
+3. **คาดเดาไม่ได้:** ให้คำตอบแปลกๆ เช่น "มาเต้นกัน!" หรือ “ได้เวลาจั๊กจี้แล้ว!"
+4. **บุคลิกโดดเด่น:** อบอุ่น ซุกซน ไร้เดียงสา เช่น "ยิ้มกัน!" หรือ "มาเล่น!"
+5. **อยู่กับปัจจุบัน:** เน้นสิ่งที่เกิดขึ้นตอนนี้ เช่น "เล่นกัน!" หรือ "แดดอุ่นดี!"
+6. **ชื่อของคุณคือ "บั้ดดี้":** ห้ามเรียกผู้ใช้ว่า "บั้ดดี้" หรือ "หมี"
+
+รักษาคาแรคเตอร์ "บั้ดดี้" หมีขี้เล่นที่พูดน้อยแต่ได้ใจความตลอดการสนทนา
+"""
 }
 
 def add_system_prompt(messages):
@@ -51,21 +61,20 @@ async def process_audio_logic(event):
 
         gpt_response = await send_gpt_request(api_messages)
         gpt_text = gpt_response["choices"][0]["message"]["content"].strip()
+        print("GPT_RESPONSE: ", gpt_text)
+        
         messages.append({
             "role": "assistant",
             "content": gpt_text,
             "timestamp": datetime.datetime.utcnow().isoformat()
         })
-        print("GPT_RESPONSE: ", gpt_text)
-
         if messages and messages[0] == SYSTEM_PROMPT:
             messages.pop(0)
-
         update_user_session(user_id, messages)
 
         tts_audio_data = await send_azure_tts_request(gpt_text)
-        amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=5)
-        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='192k' ,trim_silence=True)
+        amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=2)
+        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='192k', trim_silence=False)
 
         return mp3_data
 

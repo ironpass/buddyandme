@@ -5,15 +5,13 @@
 #include <AudioOutputI2S.h>
 #include <AudioFileSourceHTTPStreamPost.h>
 #include <AudioFileSourceSPIFFS.h>
-// #include <WiFiClientSecure.h>
-#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <SPIFFS.h>
 
-WiFiClient client;
+WiFiClientSecure client;
 
 // Server URL
-// const char* serverName = "https://or1nhpgnhk.execute-api.ap-southeast-1.amazonaws.com/dev";
-const char* serverName = "http://192.168.1.37:8002";
+const char* serverName = "https://or1nhpgnhk.execute-api.ap-southeast-1.amazonaws.com/dev";
 const char* root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF\n" \
@@ -90,7 +88,7 @@ void setup() {
   setupWiFi();
 
   // Set the root CA for SSL
-  // client.setCACert(root_ca);
+  client.setCACert(root_ca);
 }
 
 void setupWiFi() {
