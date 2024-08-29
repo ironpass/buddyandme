@@ -1,5 +1,6 @@
 Please do this to deploy the serverless
-`sls deploy`
+`sls deploy --stage dev`
+`sls deploy --stage prod`
 
 Start DB before test or run locally
 `java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb`
