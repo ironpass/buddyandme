@@ -8,14 +8,14 @@ provider:
   name: aws
   runtime: python3.8
   region: ap-southeast-1
-  stage: dev
+  stage: ${opt:stage, 'dev'}  # Default to 'dev' if no stage is provided
   apiGateway:
     binaryMediaTypes:
       - 'audio/mpeg'
   environment:
     OPENAI_API_KEY: ${param:OPENAI_API_KEY}
-    DYNAMODB_MESSAGES_TABLE: UserMessagesTable
-    DYNAMODB_PROMPTS_TABLE: UserPromptsTable
+    DYNAMODB_MESSAGES_TABLE: ${self:custom.dynamodbTable.${self:provider.stage}.messages}
+    DYNAMODB_PROMPTS_TABLE: ${self:custom.dynamodbTable.${self:provider.stage}.prompts}
     AZURE_REGION: ${param:AZURE_REGION}
     AZURE_API_KEY: ${param:AZURE_API_KEY}
   iamRoleStatements:
@@ -50,7 +50,7 @@ resources:
     UserMessagesTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: UserMessagesTable
+        TableName: ${self:custom.dynamodbTable.${self:provider.stage}.messages}
         AttributeDefinitions:
           - AttributeName: UserID
             AttributeType: S
@@ -62,7 +62,7 @@ resources:
     UserPromptsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: UserPromptsTable
+        TableName: ${self:custom.dynamodbTable.${self:provider.stage}.prompts}
         AttributeDefinitions:
           - AttributeName: UserID
             AttributeType: S
@@ -84,3 +84,11 @@ custom:
   pythonRequirements:
     dockerizePip: false
     layer: true
+
+  dynamodbTable:
+    dev:
+      messages: UserMessagesTable_Dev
+      prompts: UserPromptsTable_Dev
+    prod:
+      messages: UserMessagesTable_Prod
+      prompts: UserPromptsTable_Prod
