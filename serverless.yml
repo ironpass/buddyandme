@@ -14,7 +14,8 @@ provider:
       - 'audio/mpeg'
   environment:
     OPENAI_API_KEY: ${param:OPENAI_API_KEY}
-    DYNAMODB_TABLE: UserMessagesTable
+    DYNAMODB_MESSAGES_TABLE: UserMessagesTable
+    DYNAMODB_PROMPTS_TABLE: UserPromptsTable
     AZURE_REGION: ${param:AZURE_REGION}
     AZURE_API_KEY: ${param:AZURE_API_KEY}
   iamRoleStatements:
@@ -23,7 +24,8 @@ provider:
         - dynamodb:GetItem
         - dynamodb:PutItem
       Resource:
-        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_MESSAGES_TABLE}
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_PROMPTS_TABLE}
     - Effect: Allow
       Action:
         - lambda:GetLayerVersion
@@ -49,6 +51,18 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: UserMessagesTable
+        AttributeDefinitions:
+          - AttributeName: UserID
+            AttributeType: S
+        KeySchema:
+          - AttributeName: UserID
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+    
+    UserPromptsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: UserPromptsTable
         AttributeDefinitions:
           - AttributeName: UserID
             AttributeType: S

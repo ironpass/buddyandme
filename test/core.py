@@ -4,8 +4,9 @@ from unittest.mock import patch, AsyncMock
 import datetime
 import base64
 import json
-from app.core import process_audio_logic, limit_messages, SYSTEM_PROMPT
-from app.audio_processing import amplify_audio, add_wav_header
+from app.core import process_audio_logic, limit_messages
+from app.audio_processing import amplify_pcm_audio, compress_to_mp3
+from app.constants import DEFAULT_SYSTEM_PROMPT
 
 @pytest.fixture
 def event():
@@ -36,42 +37,65 @@ def mock_responses():
 @pytest.mark.asyncio
 @patch('app.core.get_user_session')
 @patch('app.core.update_user_session')
-@patch('app.core.send_whisper_stt_request')
+@patch('app.core.get_user_system_prompt')
+@patch('app.core.send_azure_stt_request')
 @patch('app.core.send_gpt_request')
-@patch('app.core.send_tts_request')
-async def test_process_audio_logic(mock_send_tts_request, mock_send_gpt_request, mock_send_whisper_stt_request, mock_update_user_session, mock_get_user_session, event, mock_responses):
+@patch('app.core.send_azure_tts_request')
+async def test_process_audio_logic(
+    mock_send_azure_tts_request, mock_send_gpt_request, mock_send_azure_stt_request, 
+    mock_get_user_system_prompt, mock_update_user_session, mock_get_user_session, event, mock_responses):
+    
     transcription_response, gpt_response, tts_response = mock_responses
 
-    mock_send_whisper_stt_request.return_value = transcription_response
+    mock_send_azure_stt_request.return_value = transcription_response
     mock_send_gpt_request.return_value = gpt_response
-    mock_send_tts_request.return_value = tts_response
+    mock_send_azure_tts_request.return_value = tts_response
     mock_get_user_session.return_value = []
+
+    # Scenario 1: No user-specific prompt
+    mock_get_user_system_prompt.return_value = None
 
     result = await process_audio_logic(event)
     
-    amplified_audio_data = amplify_audio(b'mock_tts_audio_data', factor=20)
-    expected = add_wav_header(amplified_audio_data, sample_rate=20000, num_channels=1, bits_per_sample=16)
-    
+    # Assuming amplify_pcm_audio and compress_to_mp3 as the correct functions
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
+    expected = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+
     assert result == expected
 
     mock_get_user_session.assert_called_once_with('test_user')
     mock_update_user_session.assert_called_once()
-    mock_send_whisper_stt_request.assert_called_once()
+    mock_send_azure_stt_request.assert_called_once()
     mock_send_gpt_request.assert_called_once()
-    mock_send_tts_request.assert_called_once()
+    mock_send_azure_tts_request.assert_called_once()
+
+    # Scenario 2: User-specific prompt exists
+    user_specific_prompt = "You are a custom assistant."
+    mock_get_user_system_prompt.return_value = user_specific_prompt
+
+    result = await process_audio_logic(event)
+    api_call_messages = mock_send_gpt_request.call_args[0][0]
+    assert api_call_messages[0]['content'] == user_specific_prompt
 
 @pytest.mark.asyncio
 @patch('app.core.get_user_session')
 @patch('app.core.update_user_session')
-@patch('app.core.send_whisper_stt_request')
+@patch('app.core.get_user_system_prompt')
+@patch('app.core.send_azure_stt_request')
 @patch('app.core.send_gpt_request')
-@patch('app.core.send_tts_request')
-async def test_process_audio_logic_scenario(mock_send_tts_request, mock_send_gpt_request, mock_send_whisper_stt_request, mock_update_user_session, mock_get_user_session, event, mock_responses):
+@patch('app.core.send_azure_tts_request')
+async def test_process_audio_logic_scenario(
+    mock_send_azure_tts_request, mock_send_gpt_request, mock_send_azure_stt_request, 
+    mock_get_user_system_prompt, mock_update_user_session, mock_get_user_session, event, mock_responses):
+    
     transcription_response, gpt_response, tts_response = mock_responses
 
-    mock_send_whisper_stt_request.return_value = transcription_response
+    mock_send_azure_stt_request.return_value = transcription_response
     mock_send_gpt_request.return_value = gpt_response
-    mock_send_tts_request.return_value = tts_response
+    mock_send_azure_tts_request.return_value = tts_response
+
+    # Mocking user-specific prompt not being found
+    mock_get_user_system_prompt.return_value = None
 
     # Scenario 1: No previous messages
     mock_get_user_session.return_value = []
@@ -111,15 +135,15 @@ async def test_process_audio_logic_scenario(mock_send_tts_request, mock_send_gpt
     assert len(mock_update_user_session.call_args[0][1]) == 22  # last 20 previous + user + assistant
     api_call_messages = mock_send_gpt_request.call_args[0][0]
     assert len(api_call_messages) == 22  # SYSTEM_PROMPT + last 20 previous + user
-    assert api_call_messages == [SYSTEM_PROMPT] + mock_get_user_session.return_value[-20:] + [
+    assert api_call_messages == [{"role": "system", "content": DEFAULT_SYSTEM_PROMPT}] + mock_get_user_session.return_value[-20:] + [
         {"role": "user", "content": transcription_response['text'], "timestamp": api_call_messages[-1]['timestamp']}
     ]
 
     mock_get_user_session.assert_called_with('test_user')
     mock_update_user_session.assert_called()
-    mock_send_whisper_stt_request.assert_called()
+    mock_send_azure_stt_request.assert_called()
     mock_send_gpt_request.assert_called()
-    mock_send_tts_request.assert_called()
+    mock_send_azure_tts_request.assert_called()
 
 def test_limit_messages():
     messages = [
