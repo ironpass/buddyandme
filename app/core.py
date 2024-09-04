@@ -2,13 +2,14 @@ import datetime
 import base64
 import json
 import aiohttp
+import aiofiles
 import os
 from .db import get_user_session, update_user_session, get_user_system_prompt
 from .audio_processing import calculate_audio_length, add_wav_header, amplify_pcm_audio, compress_to_mp3
 from .stt_requests import send_azure_stt_request
 from .llm_requests import send_gpt_request
 from .tts_requests import send_azure_tts_request
-from .constants import DEFAULT_SYSTEM_PROMPT
+from .prompts import DEFAULT_SYSTEM_PROMPT
 
 def extract_body(event):
     """Extract and validate the body from the event."""
@@ -84,9 +85,9 @@ async def handle_audio(user_id, raw_audio_data, full_messages):
 async def handle_no_transcription(user_id, full_messages):
     """Handle the case where no transcription is available."""
     full_messages = append_message(full_messages, "", "user")
-    full_messages = append_message(full_messages, "พูดอีกทีได้ไหม?", "assistant")
+    full_messages = append_message(full_messages, "อะไรนะ บั้ดดี้ขออีกที", "assistant")
 
-    return full_messages, await serve_pre_recorded_audio("can_you_say_again.mp3")
+    return full_messages, await serve_pre_recorded_audio("say_again.mp3")
 
 
 async def handle_transcription(user_id, transcription, full_messages):
@@ -140,13 +141,13 @@ async def transcribe_audio(raw_audio_data):
 
 async def serve_pre_recorded_audio(file_name):
     """Serve a pre-recorded MP3 file asynchronously."""
-    mp3_file_path = os.path.join("app", "sound", file_name)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    mp3_file_path = os.path.join(base_dir, "sounds", file_name)
     async with aiofiles.open(mp3_file_path, "rb") as mp3_file:
         return await mp3_file.read()
-
 
 async def convert_text_to_audio_and_respond(assistant_response):
     """Convert the GPT response to audio."""
     tts_audio_data = await send_azure_tts_request(assistant_response)
-    amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=3)
-    return compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    tts_audio_data = amplify_pcm_audio(tts_audio_data, factor=1)
+    return compress_to_mp3(tts_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)

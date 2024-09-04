@@ -5,7 +5,7 @@ import base64
 import json
 from app.core import process_audio_logic, limit_messages
 from app.audio_processing import amplify_pcm_audio, compress_to_mp3
-from app.constants import DEFAULT_SYSTEM_PROMPT
+from app.prompts import DEFAULT_SYSTEM_PROMPT
 
 # Load the test sound files as base64 encoded strings
 def load_sound_file(filename):
