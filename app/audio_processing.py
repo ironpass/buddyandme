@@ -2,6 +2,20 @@ import io
 import wave
 from pydub import AudioSegment
 
+def calculate_audio_length(raw_audio_data, sample_rate=16000, num_channels=1, sample_width=2):
+    """
+    Calculate the length of raw PCM audio data in seconds.
+
+    :param raw_audio_data: The raw PCM audio data (bytes)
+    :param sample_rate: The sample rate in Hz (default is 15000 Hz)
+    :param num_channels: Number of audio channels (1 for mono, 2 for stereo)
+    :param sample_width: Width of each sample in bytes (default is 2 for 16-bit PCM)
+    :return: Duration of the audio in seconds
+    """
+    num_samples = len(raw_audio_data) // (num_channels * sample_width)
+    duration_seconds = num_samples / sample_rate
+    return duration_seconds
+
 def add_wav_header(pcm_data, sample_rate=16000, num_channels=1, bits_per_sample=16):
     num_frames = len(pcm_data) // (bits_per_sample // 8)
     buffer = io.BytesIO()

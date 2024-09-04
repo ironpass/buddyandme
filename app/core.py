@@ -2,89 +2,151 @@ import datetime
 import base64
 import json
 import aiohttp
+import os
 from .db import get_user_session, update_user_session, get_user_system_prompt
-from .audio_processing import add_wav_header, amplify_pcm_audio, compress_to_mp3
-from .stt_requests import send_whisper_stt_request, send_azure_stt_request, send_deepgram_stt_request
+from .audio_processing import calculate_audio_length, add_wav_header, amplify_pcm_audio, compress_to_mp3
+from .stt_requests import send_azure_stt_request
 from .llm_requests import send_gpt_request
-from .tts_requests import send_openai_tts_request, send_azure_tts_request
+from .tts_requests import send_azure_tts_request
 from .constants import DEFAULT_SYSTEM_PROMPT
 
-
-def add_system_prompt(user_id, messages):
-    system_prompt = {
-        "role": "system",
-        "content": DEFAULT_SYSTEM_PROMPT,
-    }
-
-    # Fetch the user-specific system prompt from the database
-    user_prompt = get_user_system_prompt(user_id)
-    if user_prompt:
-        system_prompt["content"] = user_prompt
-    
-    return [system_prompt] + messages
-
-def limit_messages(messages, max_pairs=10):
-    return messages[-max_pairs * 2:]
-
-async def process_audio_logic(event):
+def extract_body(event):
+    """Extract and validate the body from the event."""
     try:
         body = event.get('body', '{}')
         if isinstance(body, str):
             body = json.loads(body)
-        if 'audio_data' not in body:
-            return {
-                'statusCode': 400,
-                'body': 'No audio data found in the request.'
-            }
+        return body
+    except json.JSONDecodeError:
+        return {}
 
+def response_error(status_code, message):
+    """Return standardized error response."""
+    return {
+        'statusCode': status_code,
+        'body': message
+    }
+
+async def process_audio_logic(event):
+    try:
+        body = extract_body(event)
+        if 'audio_data' not in body:
+            return response_error(400, 'No audio data found in the request.')
+        
         raw_audio_data = base64.b64decode(body['audio_data'])
         user_id = body.get('user_id', 'default_user')
-        wav_data = add_wav_header(raw_audio_data, sample_rate=15000)
-        
-        transcription_response = await send_azure_stt_request(wav_data)
-        transcription = transcription_response.get("text", "")
-        print("TRANSCRIPTION: ", transcription)
 
-        messages = get_user_session(user_id)
-        messages = limit_messages(messages)
-        messages.append({
-            "role": "user",
-            "content": transcription,
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        })
-        
-        # Prepare messages with user-specific or default SYSTEM_PROMPT
-        api_messages = add_system_prompt(user_id, messages)
+        # Fetch full conversation history
+        full_messages = get_user_session(user_id)
 
-        gpt_response = await send_gpt_request(api_messages)
-        gpt_text = gpt_response["choices"][0]["message"]["content"].strip()
-        print("GPT_RESPONSE: ", gpt_text)
-        
-        messages.append({
-            "role": "assistant",
-            "content": gpt_text,
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        })
-        
-        # Remove the system prompt from the messages if it exists
-        if messages and messages[0]['role'] == 'system':
-            messages.pop(0)
-        
-        update_user_session(user_id, messages)
+        # Determine the audio length
+        audio_length_seconds = calculate_audio_length(raw_audio_data, sample_rate=15000)
 
-        tts_audio_data = await send_azure_tts_request(gpt_text)
-        amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=3)
-        mp3_data = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+        # Handle short or normal audio
+        if audio_length_seconds < 0.4:
+            full_updated_messages, response = await handle_short_audio(user_id, full_messages)
+        else:
+            full_updated_messages, response = await handle_audio(user_id, raw_audio_data, full_messages)
 
-        return mp3_data
+        # Update session only once with full message history
+        update_user_session(user_id, full_updated_messages)
+
+        return response
 
     except aiohttp.ClientResponseError as e:
-        return {
-            'statusCode': 500,
-            'body': f"Error processing audio: {str(e)}"
-        }
+        return response_error(500, f"Error processing audio: {str(e)}")
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'body': f"Error: {str(e)}"
-        }
+        return response_error(500, f"Error: {str(e)}")
+
+
+async def handle_short_audio(user_id, full_messages):
+    """Handle very short audio by generating a GPT response."""
+    system_prompt = prepare_system_prompt(user_id)
+    limited_messages = limit_messages(full_messages)
+
+    gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, "", "user"))
+
+    full_messages = append_message(full_messages, "", "user")
+    full_messages = append_message(full_messages, gpt_response, "assistant")
+
+    return full_messages, await convert_text_to_audio_and_respond(gpt_response)
+
+async def handle_audio(user_id, raw_audio_data, full_messages):
+    """Handle normal-length audio with or without transcription."""
+    transcription = await transcribe_audio(raw_audio_data)
+
+    if not transcription:
+        return await handle_no_transcription(user_id, full_messages)
+
+    return await handle_transcription(user_id, transcription, full_messages)
+
+
+async def handle_no_transcription(user_id, full_messages):
+    """Handle the case where no transcription is available."""
+    full_messages = append_message(full_messages, "", "user")
+    full_messages = append_message(full_messages, "พูดอีกทีได้ไหม?", "assistant")
+
+    return full_messages, await serve_pre_recorded_audio("can_you_say_again.mp3")
+
+
+async def handle_transcription(user_id, transcription, full_messages):
+    """Handle valid transcription."""
+    system_prompt = prepare_system_prompt(user_id)
+    limited_messages = limit_messages(full_messages)
+    gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, transcription, "user"))
+
+    full_messages = append_message(full_messages, transcription, "user")
+    full_messages = append_message(full_messages, gpt_response, "assistant")
+
+    return full_messages, await convert_text_to_audio_and_respond(gpt_response)
+
+
+def append_message(messages, content, role, timestamp=None):
+    """Append a message with the specified role and optional timestamp."""
+    if not timestamp:
+        timestamp = datetime.datetime.utcnow().isoformat()
+
+    print("Role:", role, ":", content)
+    return messages + [{
+        "role": role,
+        "content": content,
+        "timestamp": timestamp
+    }]
+
+def limit_messages(messages, max_pairs=10):
+    """Limit the number of message pairs for GPT API calls."""
+    return messages[-max_pairs * 2:]
+
+async def generate_gpt_response(system_prompt, api_messages):
+    """Generate a GPT response based on the system prompt and provided conversation history."""
+    # Include the system prompt and call GPT API
+    api_messages = [{"role": "system", "content": system_prompt}] + api_messages
+    gpt_response = await send_gpt_request(api_messages)
+    return gpt_response["choices"][0]["message"]["content"].strip()
+
+
+def prepare_system_prompt(user_id):
+    """Prepare the system prompt (either dynamic or default)."""
+    user_prompt = get_user_system_prompt(user_id)
+    return user_prompt if user_prompt else DEFAULT_SYSTEM_PROMPT
+
+
+async def transcribe_audio(raw_audio_data):
+    """Send audio to STT service and return transcription."""
+    wav_data = add_wav_header(raw_audio_data, sample_rate=15000)
+    transcription_response = await send_azure_stt_request(wav_data)
+    return transcription_response.get("text", "").strip()
+
+
+async def serve_pre_recorded_audio(file_name):
+    """Serve a pre-recorded MP3 file asynchronously."""
+    mp3_file_path = os.path.join("app", "sound", file_name)
+    async with aiofiles.open(mp3_file_path, "rb") as mp3_file:
+        return await mp3_file.read()
+
+
+async def convert_text_to_audio_and_respond(assistant_response):
+    """Convert the GPT response to audio."""
+    tts_audio_data = await send_azure_tts_request(assistant_response)
+    amplified_audio_data = amplify_pcm_audio(tts_audio_data, factor=3)
+    return compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
