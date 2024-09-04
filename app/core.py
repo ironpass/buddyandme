@@ -37,17 +37,20 @@ async def process_audio_logic(event):
         raw_audio_data = base64.b64decode(body['audio_data'])
         user_id = body.get('user_id', 'default_user')
 
-        # Fetch full conversation history
+        # Fetch full conversation history and system prompt details
         full_messages = get_user_session(user_id)
+        system_prompt_data = get_user_system_prompt(user_id)
+        system_prompt = system_prompt_data.get("SystemPrompt") or DEFAULT_SYSTEM_PROMPT
+        active_message_limit = system_prompt_data.get("ActiveMessageLimit") or 10
 
         # Determine the audio length
         audio_length_seconds = calculate_audio_length(raw_audio_data, sample_rate=15000)
 
         # Handle short or normal audio
         if audio_length_seconds < 0.4:
-            full_updated_messages, response = await handle_short_audio(user_id, full_messages)
+            full_updated_messages, response = await handle_short_audio(user_id, full_messages, active_message_limit, system_prompt)
         else:
-            full_updated_messages, response = await handle_audio(user_id, raw_audio_data, full_messages)
+            full_updated_messages, response = await handle_audio(user_id, raw_audio_data, full_messages, active_message_limit, system_prompt)
 
         # Update session only once with full message history
         update_user_session(user_id, full_updated_messages)
@@ -60,10 +63,9 @@ async def process_audio_logic(event):
         return response_error(500, f"Error: {str(e)}")
 
 
-async def handle_short_audio(user_id, full_messages):
+async def handle_short_audio(user_id, full_messages, active_message_limit, system_prompt):
     """Handle very short audio by generating a GPT response."""
-    system_prompt = prepare_system_prompt(user_id)
-    limited_messages = limit_messages(full_messages)
+    limited_messages = limit_messages(full_messages, active_message_limit)
 
     gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, "", "user"))
 
@@ -72,14 +74,14 @@ async def handle_short_audio(user_id, full_messages):
 
     return full_messages, await convert_text_to_audio_and_respond(gpt_response)
 
-async def handle_audio(user_id, raw_audio_data, full_messages):
+async def handle_audio(user_id, raw_audio_data, full_messages, active_message_limit, system_prompt):
     """Handle normal-length audio with or without transcription."""
     transcription = await transcribe_audio(raw_audio_data)
 
     if not transcription:
         return await handle_no_transcription(user_id, full_messages)
 
-    return await handle_transcription(user_id, transcription, full_messages)
+    return await handle_transcription(user_id, transcription, full_messages, active_message_limit, system_prompt)
 
 
 async def handle_no_transcription(user_id, full_messages):
@@ -87,13 +89,12 @@ async def handle_no_transcription(user_id, full_messages):
     full_messages = append_message(full_messages, "", "user")
     full_messages = append_message(full_messages, "อะไรนะ บั้ดดี้ขออีกที", "assistant")
 
-    return full_messages, await serve_pre_recorded_audio("say_again.mp3")
+    return full_messages, await serve_audio_from_file("say_again.mp3")
 
 
-async def handle_transcription(user_id, transcription, full_messages):
+async def handle_transcription(user_id, transcription, full_messages, active_message_limit, system_prompt):
     """Handle valid transcription."""
-    system_prompt = prepare_system_prompt(user_id)
-    limited_messages = limit_messages(full_messages)
+    limited_messages = limit_messages(full_messages, active_message_limit)
     gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, transcription, "user"))
 
     full_messages = append_message(full_messages, transcription, "user")
@@ -114,23 +115,22 @@ def append_message(messages, content, role, timestamp=None):
         "timestamp": timestamp
     }]
 
-def limit_messages(messages, max_pairs=10):
+def limit_messages(messages, active_message_limit):
     """Limit the number of message pairs for GPT API calls."""
-    return messages[-max_pairs * 2:]
+    if active_message_limit == -1:  # Handle unlimited case
+        return messages
+
+    # Calculate the correct slice index
+    limit_slice_index = int(-active_message_limit * 2)
+    return messages[limit_slice_index:]
 
 async def generate_gpt_response(system_prompt, api_messages):
     """Generate a GPT response based on the system prompt and provided conversation history."""
     # Include the system prompt and call GPT API
     api_messages = [{"role": "system", "content": system_prompt}] + api_messages
+    print("len of api messages: ", api_messages)
     gpt_response = await send_gpt_request(api_messages)
     return gpt_response["choices"][0]["message"]["content"].strip()
-
-
-def prepare_system_prompt(user_id):
-    """Prepare the system prompt (either dynamic or default)."""
-    user_prompt = get_user_system_prompt(user_id)
-    return user_prompt if user_prompt else DEFAULT_SYSTEM_PROMPT
-
 
 async def transcribe_audio(raw_audio_data):
     """Send audio to STT service and return transcription."""
@@ -138,8 +138,7 @@ async def transcribe_audio(raw_audio_data):
     transcription_response = await send_azure_stt_request(wav_data)
     return transcription_response.get("text", "").strip()
 
-
-async def serve_pre_recorded_audio(file_name):
+async def serve_audio_from_file(file_name):
     """Serve a pre-recorded MP3 file asynchronously."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     mp3_file_path = os.path.join(base_dir, "sounds", file_name)

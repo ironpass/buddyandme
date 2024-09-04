@@ -34,14 +34,24 @@ def update_user_session(user_id, messages):
 def get_user_system_prompt(user_id):
     try:
         response = prompts_table.get_item(Key={'UserID': user_id})
-        return response.get('Item', {}).get('SystemPrompt', None)
+        item = response.get('Item', None)
+        
+        if not item:
+            # If user does not exist, return None for both fields
+            return {"SystemPrompt": None, "ActiveMessageLimit": None}
+        
+        # Return raw system prompt and ActiveMessageLimit from the database
+        system_prompt = item.get('SystemPrompt', None)  # No default value here
+        active_message_limit = item.get('ActiveMessageLimit', None)  # No default value here
+        
+        return {"SystemPrompt": system_prompt, "ActiveMessageLimit": active_message_limit}
     except ClientError as e:
         print("GET_USER_SYSTEM_PROMPT: ", e.response['Error']['Message'])
-        return None
+        return {"SystemPrompt": None, "ActiveMessageLimit": None}
 
 # Unused for now
-def update_user_system_prompt(user_id, system_prompt):
+def update_user_system_prompt(user_id, system_prompt, active_message_limit):
     try:
-        prompts_table.put_item(Item={'UserID': user_id, 'SystemPrompt': system_prompt})
+        prompts_table.put_item(Item={'UserID': user_id, 'SystemPrompt': system_prompt, 'ActiveMessageLimit': active_message_limit})
     except ClientError as e:
         print("UPDATE_USER_SYSTEM_PROMPT: ", e.response['Error']['Message'])

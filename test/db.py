@@ -125,24 +125,44 @@ def test_get_user_system_prompt(dynamodb_client):
     # Insert a test item into the UserPrompts_TEST table
     prompts_table.put_item(Item={
         'UserID': 'test_user',
-        'SystemPrompt': 'You are a friendly assistant.'
+        'SystemPrompt': 'You are a friendly assistant.',
+        'ActiveMessageLimit': 15  # Set a specific limit for this user
     })
 
     # Test get_user_system_prompt
-    system_prompt = get_user_system_prompt('test_user')
-    assert system_prompt == 'You are a friendly assistant.'
+    system_prompt_data = get_user_system_prompt('test_user')
+    assert system_prompt_data['SystemPrompt'] == 'You are a friendly assistant.'
+    assert system_prompt_data['ActiveMessageLimit'] == 15
+
+def test_get_user_system_prompt_defaults(dynamodb_client):
+    _, prompts_table = dynamodb_client
+
+    # Insert a test item without ActiveMessageLimit
+    prompts_table.put_item(Item={
+        'UserID': 'test_user_no_limit',
+        'SystemPrompt': 'You have no specific limit.'
+    })
+
+    # Test get_user_system_prompt
+    system_prompt_data = get_user_system_prompt('test_user_no_limit')
+    assert system_prompt_data['SystemPrompt'] == 'You have no specific limit.'
+    assert system_prompt_data['ActiveMessageLimit'] == None  # Default value
 
 def test_update_user_system_prompt(dynamodb_client):
     _, prompts_table = dynamodb_client
     user_id = 'test_user'
     new_prompt = 'You are a playful teddy bear.'
+    new_limit = 20
 
     # Test update_user_system_prompt
-    update_user_system_prompt(user_id, new_prompt)
+    update_user_system_prompt(user_id, new_prompt, new_limit)
 
     response = prompts_table.get_item(Key={'UserID': user_id})
     stored_prompt = response.get('Item', {}).get('SystemPrompt', '')
+    stored_limit = response.get('Item', {}).get('ActiveMessageLimit', 10)  # Default is 10
+
     assert stored_prompt == new_prompt
+    assert stored_limit == new_limit
 
 if __name__ == '__main__':
     pytest.main()
