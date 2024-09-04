@@ -30,7 +30,7 @@ provider:
       Action:
         - lambda:GetLayerVersion
       Resource:
-        - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:2
+        - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:3
 
 functions:
   app:
@@ -38,7 +38,7 @@ functions:
     timeout: 30
     memorySize: 1024
     layers:
-      - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:2
+      - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:3
     events:
       - http:
           path: /
