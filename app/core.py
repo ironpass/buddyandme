@@ -1,3 +1,4 @@
+import time  # Add time module for logging timestamps
 import datetime
 import base64
 import json
@@ -10,6 +11,11 @@ from .stt_requests import send_azure_stt_request
 from .llm_requests import send_gpt_request
 from .tts_requests import send_azure_tts_request
 from .prompts import DEFAULT_SYSTEM_PROMPT
+
+def log_time(message, start_time):
+    """Helper function to log elapsed time with a message."""
+    elapsed_time = time.time() - start_time
+    print(f"{message}: {elapsed_time:.3f} seconds")
 
 def extract_body(event):
     """Extract and validate the body from the event."""
@@ -29,32 +35,56 @@ def response_error(status_code, message):
     }
 
 async def process_audio_logic(event):
+    start_time = time.time()
+
     try:
+        # Log extraction time
+        body_extraction_start = time.time()
         body = extract_body(event)
+        log_time("Body extraction", body_extraction_start)
+
         if 'audio_data' not in body:
             return response_error(400, 'No audio data found in the request.')
-        
+
+        audio_decode_start = time.time()
         raw_audio_data = base64.b64decode(body['audio_data'])
+        log_time("Audio decode", audio_decode_start)
+
         user_id = body.get('user_id', 'default_user')
 
-        # Fetch full conversation history and system prompt details
+        # Log session retrieval
+        session_retrieval_start = time.time()
         full_messages = get_user_session(user_id)
+        log_time("User session retrieval", session_retrieval_start)
+
+        # Log system prompt retrieval
+        prompt_retrieval_start = time.time()
         system_prompt_data = get_user_system_prompt(user_id)
         system_prompt = system_prompt_data.get("SystemPrompt") or DEFAULT_SYSTEM_PROMPT
         active_message_limit = system_prompt_data.get("ActiveMessageLimit") or 10
+        log_time("System prompt retrieval", prompt_retrieval_start)
 
-        # Determine the audio length
+        # Log audio length calculation
+        audio_length_start = time.time()
         audio_length_seconds = calculate_audio_length(raw_audio_data, sample_rate=15000)
+        log_time("Audio length calculation", audio_length_start)
 
         # Handle short or normal audio
         if audio_length_seconds < 0.4:
+            handling_audio_start = time.time()
             full_updated_messages, response = await handle_short_audio(user_id, full_messages, active_message_limit, system_prompt)
+            log_time("Short audio handling", handling_audio_start)
         else:
+            handling_audio_start = time.time()
             full_updated_messages, response = await handle_audio(user_id, raw_audio_data, full_messages, active_message_limit, system_prompt)
+            log_time("Normal audio handling", handling_audio_start)
 
-        # Update session only once with full message history
+        # Log session update
+        session_update_start = time.time()
         update_user_session(user_id, full_updated_messages)
+        log_time("User session update", session_update_start)
 
+        log_time("Total process_audio_logic time", start_time)
         return response
 
     except aiohttp.ClientResponseError as e:
@@ -65,23 +95,40 @@ async def process_audio_logic(event):
 
 async def handle_short_audio(user_id, full_messages, active_message_limit, system_prompt):
     """Handle very short audio by generating a GPT response."""
+    handle_short_audio_start = time.time()
     limited_messages = limit_messages(full_messages, active_message_limit)
 
+    gpt_start = time.time()
     gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, "", "user"))
+    log_time("GPT response for short audio", gpt_start)
 
     full_messages = append_message(full_messages, "", "user")
     full_messages = append_message(full_messages, gpt_response, "assistant")
 
-    return full_messages, await convert_text_to_audio_and_respond(gpt_response)
+    audio_conversion_start = time.time()
+    audio_response = await convert_text_to_audio_and_respond(gpt_response)
+    log_time("Audio conversion for short audio", audio_conversion_start)
+
+    log_time("Total short audio handling", handle_short_audio_start)
+    return full_messages, audio_response
 
 async def handle_audio(user_id, raw_audio_data, full_messages, active_message_limit, system_prompt):
     """Handle normal-length audio with or without transcription."""
+    handle_audio_start = time.time()
+
+    stt_start = time.time()
     transcription = await transcribe_audio(raw_audio_data)
+    log_time("STT transcription", stt_start)
 
     if not transcription:
         return await handle_no_transcription(user_id, full_messages)
 
-    return await handle_transcription(user_id, transcription, full_messages, active_message_limit, system_prompt)
+    handle_transcription_start = time.time()
+    full_messages, response = await handle_transcription(user_id, transcription, full_messages, active_message_limit, system_prompt)
+    log_time("Transcription handling", handle_transcription_start)
+
+    log_time("Total audio handling", handle_audio_start)
+    return full_messages, response
 
 
 async def handle_no_transcription(user_id, full_messages):
@@ -89,18 +136,26 @@ async def handle_no_transcription(user_id, full_messages):
     full_messages = append_message(full_messages, "", "user")
     full_messages = append_message(full_messages, "อะไรนะ บั้ดดี้ขออีกที", "assistant")
 
-    return full_messages, await serve_audio_from_file("say_again.mp3")
+    audio_serve_start = time.time()
+    audio_response = await serve_audio_from_file("say_again.mp3")
+    log_time("Audio serve for no transcription", audio_serve_start)
+
+    return full_messages, audio_response
 
 
 async def handle_transcription(user_id, transcription, full_messages, active_message_limit, system_prompt):
     """Handle valid transcription."""
     limited_messages = limit_messages(full_messages, active_message_limit)
+
+    gpt_start = time.time()
     gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, transcription, "user"))
+    log_time("GPT response for transcription", gpt_start)
 
     full_messages = append_message(full_messages, transcription, "user")
     full_messages = append_message(full_messages, gpt_response, "assistant")
 
-    return full_messages, await convert_text_to_audio_and_respond(gpt_response)
+    audio_response = await convert_text_to_audio_and_respond(gpt_response)
+    return full_messages, audio_response
 
 
 def append_message(messages, content, role, timestamp=None):
@@ -146,6 +201,12 @@ async def serve_audio_from_file(file_name):
 
 async def convert_text_to_audio_and_respond(assistant_response):
     """Convert the GPT response to audio."""
+    audio_tts_start = time.time()
     tts_audio_data = await send_azure_tts_request(assistant_response)
+    log_time("Audio TTS", audio_tts_start)
+
+    audio_processing_start = time.time()
     tts_audio_data = amplify_pcm_audio(tts_audio_data, factor=1)
-    return compress_to_mp3(tts_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    compressed_audio = compress_to_mp3(tts_audio_data, sample_rate=24000, bitrate='32k')
+    log_time("Audio Processing", audio_processing_start)
+    return compressed_audio

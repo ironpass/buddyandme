@@ -1,6 +1,6 @@
 import io
 import wave
-from pydub import AudioSegment
+import subprocess
 
 def calculate_audio_length(raw_audio_data, sample_rate=16000, num_channels=1, sample_width=2):
     """
@@ -36,32 +36,12 @@ def amplify_pcm_audio(pcm_data, factor=2):
         audio[i:i+2] = sample.to_bytes(2, byteorder='little', signed=True)
     return bytes(audio)
 
-def compress_to_mp3(pcm_data, sample_rate=44100, num_channels=1, bitrate='32k', trim_silence=False):
-    """
-    Compresses PCM data to MP3 format with reduced size and optional silence trimming.
 
-    :param pcm_data: The raw PCM audio data.
-    :param sample_rate: The sample rate of the audio.
-    :param num_channels: Number of audio channels (1 for mono, 2 for stereo).
-    :param bitrate: Bitrate for MP3 compression.
-    :param trim_silence: Whether to trim silence from the beginning and end of the audio.
-    :return: Compressed MP3 audio data.
-    """
-    audio = AudioSegment(
-        data=pcm_data,
-        sample_width=2,  # Assuming 16-bit PCM
-        frame_rate=sample_rate,
-        channels=num_channels
-    )
+def compress_to_mp3(pcm_data, sample_rate=24000, num_channels=1, bitrate='32k'):
+    process = subprocess.Popen([
+        'ffmpeg', '-y', '-f', 's16le', '-ar', str(sample_rate), '-ac', str(num_channels), 
+        '-i', 'pipe:0', '-b:a', bitrate, '-f', 'mp3', 'pipe:1'
+    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     
-    # Trim silence if enabled
-    if trim_silence:
-        audio = audio.strip_silence(silence_thresh=-100)
-
-    mp3_io = io.BytesIO()
-
-    audio.export(mp3_io, format="mp3", bitrate=bitrate, codec='libmp3lame', parameters=["-q:a", "9"])
-
-    mp3_data = mp3_io.getvalue()
-    
+    mp3_data, _ = process.communicate(input=pcm_data)
     return mp3_data

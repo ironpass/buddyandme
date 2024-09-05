@@ -87,7 +87,7 @@ async def test_process_audio_logic_very_short_audio(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
     assert result == expected_audio
 
@@ -129,7 +129,7 @@ async def test_process_audio_logic_normal_audio_with_transcription(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
     assert result == expected_audio
 
@@ -218,7 +218,7 @@ async def test_process_audio_logic_user_specific_prompt_exists(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
     assert result == expected_audio
 
@@ -265,7 +265,7 @@ async def test_process_audio_logic_user_specific_prompt_does_not_exist(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
     assert result == expected_audio
 
@@ -312,7 +312,7 @@ async def test_process_audio_logic_no_previous_messages(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
     assert result == expected_audio
 
     # Check that GPT was called with the correct system prompt and user message
@@ -373,7 +373,7 @@ async def test_process_audio_logic_exactly_20_messages(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
     assert result == expected_audio
 
     # Ensure GPT was called with the correct parameters (system prompt + 20 previous messages + new user message)
@@ -437,7 +437,7 @@ async def test_process_audio_logic_more_than_20_messages(
     
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
     assert result == expected_audio
 
     # Ensure GPT was called with the correct parameters (last 20 previous messages + new user message)
@@ -499,7 +499,7 @@ async def test_process_audio_logic_unlimited_message_limit(
 
     # Check the response is the TTS-generated audio
     amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
-    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='16k', trim_silence=True)
+    expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
     assert result == expected_audio
 
     # Ensure GPT was called with the correct parameters (all 30 previous messages + new user message)
