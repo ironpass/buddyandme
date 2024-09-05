@@ -128,7 +128,6 @@ async def generate_gpt_response(system_prompt, api_messages):
     """Generate a GPT response based on the system prompt and provided conversation history."""
     # Include the system prompt and call GPT API
     api_messages = [{"role": "system", "content": system_prompt}] + api_messages
-    print("len of api messages: ", api_messages)
     gpt_response = await send_gpt_request(api_messages)
     return gpt_response["choices"][0]["message"]["content"].strip()
 
