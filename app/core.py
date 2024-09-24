@@ -206,7 +206,7 @@ async def convert_text_to_audio_and_respond(assistant_response):
     log_time("Audio TTS", audio_tts_start)
 
     audio_processing_start = time.time()
-    tts_audio_data = amplify_pcm_audio(tts_audio_data, factor=1)
+    tts_audio_data = amplify_pcm_audio(tts_audio_data, factor=3)
     compressed_audio = compress_to_mp3(tts_audio_data, sample_rate=24000, bitrate='32k')
     log_time("Audio Processing", audio_processing_start)
     return compressed_audio

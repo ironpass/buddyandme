@@ -26,8 +26,8 @@ async def send_azure_tts_request(text):
     # SSML input for Azure TTS
     ssml_text = f"""
     <speak version='1.0' xml:lang='th-TH'>
-        <voice name='th-TH-PremwadeeNeural'>
-            <prosody rate="-30%" pitch="140%" contour="(50%,+50%) (100%,-100%)">
+        <voice name='th-TH-AcharaNeural'>
+            <prosody rate="-30%" pitch="70%" contour="(50%, +50%) (100%,-0%)">
                 {text}
             </prosody>
         </voice>
