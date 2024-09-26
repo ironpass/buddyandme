@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import time  # Add time module for logging timestamps
-import datetime
+from datetime import datetime, timedelta, timezone
 import base64
 import json
 import aiohttp
@@ -17,16 +17,6 @@ def log_time(message, start_time):
     """Helper function to log elapsed time with a message."""
     elapsed_time = time.time() - start_time
     print(f"{message}: {elapsed_time:.3f} seconds")
-
-def extract_body(event):
-    """Extract and validate the body from the event."""
-    try:
-        body = event.get('body', '{}')
-        if isinstance(body, str):
-            body = json.loads(body)
-        return body
-    except json.JSONDecodeError:
-        return {}
 
 @dataclass
 class Response:
@@ -64,7 +54,14 @@ async def process_audio_logic(event) -> Response:
         system_prompt_data = get_user_system_prompt(user_id)
         system_prompt = system_prompt_data.get("SystemPrompt") or DEFAULT_SYSTEM_PROMPT
         active_message_limit = system_prompt_data.get("ActiveMessageLimit") or 10
+        daily_rate_limit = system_prompt_data.get("DailyRateLimit") or 100
         log_time("System prompt retrieval", prompt_retrieval_start)
+
+        if(is_rate_limit_reached(full_messages, daily_rate_limit)):
+            return Response(
+                status_code=429,
+                body='Rate limit reached.'
+            )
 
         # Log audio length calculation
         audio_length_start = time.time()
@@ -102,6 +99,16 @@ async def process_audio_logic(event) -> Response:
             body=f"Error: {str(e)}"
         )
 
+def extract_body(event):
+    """Extract and validate the body from the event."""
+    try:
+        body = event.get('body', '{}')
+        if isinstance(body, str):
+            body = json.loads(body)
+        return body
+    except json.JSONDecodeError:
+        return {}
+
 
 async def handle_short_audio(user_id, full_messages, active_message_limit, system_prompt):
     """Handle very short audio by generating a GPT response."""
@@ -109,7 +116,7 @@ async def handle_short_audio(user_id, full_messages, active_message_limit, syste
     limited_messages = limit_messages(full_messages, active_message_limit)
 
     gpt_start = time.time()
-    gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, "", "user"))
+    gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, "", "user", verbose=False))
     log_time("GPT response for short audio", gpt_start)
 
     full_messages = append_message(full_messages, "", "user")
@@ -158,7 +165,7 @@ async def handle_transcription(user_id, transcription, full_messages, active_mes
     limited_messages = limit_messages(full_messages, active_message_limit)
 
     gpt_start = time.time()
-    gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, transcription, "user"))
+    gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, transcription, "user", verbose=False))
     log_time("GPT response for transcription", gpt_start)
 
     full_messages = append_message(full_messages, transcription, "user")
@@ -168,16 +175,18 @@ async def handle_transcription(user_id, transcription, full_messages, active_mes
     return full_messages, audio_response
 
 
-def append_message(messages, content, role, timestamp=None):
+def append_message(messages, content, role, verbose=True, timestamp=None):
     """Append a message with the specified role and optional timestamp."""
-    if not timestamp:
-        timestamp = datetime.datetime.utcnow().isoformat()
+    if timestamp is None:
+        timestamp = time.time()  # Current time in UNIX timestamp
 
-    print("Role:", role, ":", content)
+    if verbose:
+        print("Role:", role, ":", content)
+
     return messages + [{
         "role": role,
         "content": content,
-        "timestamp": timestamp
+        "timestamp": str(timestamp)
     }]
 
 def limit_messages(messages, active_message_limit):
@@ -188,6 +197,57 @@ def limit_messages(messages, active_message_limit):
     # Calculate the correct slice index
     limit_slice_index = int(-active_message_limit * 2)
     return messages[limit_slice_index:]
+
+def is_rate_limit_reached(full_messages, daily_rate_limit):
+    message_limit = daily_rate_limit * 2 # Since the messages are appended in pairs
+
+    try:
+        # GMT+7 timezone
+        tz_gmt7 = timezone(timedelta(hours=7))
+        now_gmt7 = datetime.now(tz_gmt7)
+
+        # Calculate the start of the current day (midnight) in GMT+7 timezone
+        start_of_day = datetime(
+            year=now_gmt7.year,
+            month=now_gmt7.month,
+            day=now_gmt7.day,
+            hour=0,
+            minute=0,
+            second=0,
+            tzinfo=tz_gmt7
+        )
+
+        # Get the Unix timestamp for the start of the day
+        start_of_day_timestamp = start_of_day.timestamp()
+
+        count_today = 0
+
+        # Iterate through the messages in reverse (newest first)
+        for message in reversed(full_messages):
+            try:
+                message_timestamp_str = message.get('timestamp')
+                if message_timestamp_str is None:
+                    continue  # Skip if timestamp is missing
+
+                message_timestamp = float(message_timestamp_str)
+
+                if message_timestamp >= start_of_day_timestamp:
+                    count_today += 1
+                    if count_today >= message_limit:
+                        return True  # Rate limit reached
+                else:
+                    # Since messages are sorted from oldest to newest,
+                    # once we find a message older than start_of_day, we can stop
+                    break
+            except (ValueError, TypeError):
+                # Skip messages with invalid timestamp formats
+                continue
+
+        return count_today >= message_limit
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
 
 async def generate_gpt_response(system_prompt, api_messages):
     """Generate a GPT response based on the system prompt and provided conversation history."""

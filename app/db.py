@@ -40,11 +40,11 @@ def get_user_system_prompt(user_id):
             # If user does not exist, return None for both fields
             return {"SystemPrompt": None, "ActiveMessageLimit": None}
         
-        # Return raw system prompt and ActiveMessageLimit from the database
-        system_prompt = item.get('SystemPrompt', None)  # No default value here
-        active_message_limit = item.get('ActiveMessageLimit', None)  # No default value here
+        system_prompt = item.get('SystemPrompt', None)
+        active_message_limit = item.get('ActiveMessageLimit', None)
+        daily_rate_limit = item.get('DailyRateLimit', None) 
         
-        return {"SystemPrompt": system_prompt, "ActiveMessageLimit": active_message_limit}
+        return {"SystemPrompt": system_prompt, "ActiveMessageLimit": active_message_limit, "DailyRateLimit": daily_rate_limit}
     except ClientError as e:
         print("GET_USER_SYSTEM_PROMPT: ", e.response['Error']['Message'])
         return {"SystemPrompt": None, "ActiveMessageLimit": None}
