@@ -86,10 +86,10 @@ async def test_process_audio_logic_very_short_audio(
     result = await process_audio_logic(event_very_short_audio)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure session was updated with empty user message and GPT response
     mock_get_user_session.assert_called_once_with('test_user')
@@ -128,10 +128,10 @@ async def test_process_audio_logic_normal_audio_with_transcription(
     result = await process_audio_logic(event_normal_audio_with_transcription)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure session was updated with transcribed user message and GPT response
     mock_get_user_session.assert_called_once_with('test_user')
@@ -172,7 +172,7 @@ async def test_process_audio_logic_normal_audio_without_transcription(
     result = await process_audio_logic(event_normal_audio_without_transcription)
 
     # Check the result is the pre-recorded audio
-    assert result == b'pre_recorded_audio_data'
+    assert result.body == b'pre_recorded_audio_data'
 
     # Ensure session was updated with empty user message and pre-recorded assistant response
     mock_get_user_session.assert_called_once_with('test_user')
@@ -217,10 +217,10 @@ async def test_process_audio_logic_user_specific_prompt_exists(
     result = await process_audio_logic(event_normal_audio_with_transcription)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure GPT was called with the user-specific prompt
     api_call_messages = mock_send_gpt_request.call_args[0][0]
@@ -264,10 +264,10 @@ async def test_process_audio_logic_user_specific_prompt_does_not_exist(
     result = await process_audio_logic(event_normal_audio_with_transcription)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
 
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure GPT was called with the default system prompt
     api_call_messages = mock_send_gpt_request.call_args[0][0]
@@ -311,9 +311,9 @@ async def test_process_audio_logic_no_previous_messages(
     result = await process_audio_logic(event_normal_audio_with_transcription)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Check that GPT was called with the correct system prompt and user message
     api_call_messages = mock_send_gpt_request.call_args[0][0]
@@ -372,9 +372,9 @@ async def test_process_audio_logic_exactly_20_messages(
     result = await process_audio_logic(event_normal_audio_with_transcription)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure GPT was called with the correct parameters (system prompt + 20 previous messages + new user message)
     api_call_messages = mock_send_gpt_request.call_args[0][0]
@@ -436,9 +436,9 @@ async def test_process_audio_logic_more_than_20_messages(
     result = await process_audio_logic(event_normal_audio_with_transcription)
     
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure GPT was called with the correct parameters (last 20 previous messages + new user message)
     api_call_messages = mock_send_gpt_request.call_args[0][0]
@@ -498,9 +498,9 @@ async def test_process_audio_logic_unlimited_message_limit(
     result = await process_audio_logic(event_normal_audio_with_transcription)
 
     # Check the response is the TTS-generated audio
-    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=1)
+    amplified_audio_data = amplify_pcm_audio(b'mock_tts_audio_data', factor=3)
     expected_audio = compress_to_mp3(amplified_audio_data, sample_rate=24000, bitrate='32k')
-    assert result == expected_audio
+    assert result.body == expected_audio
 
     # Ensure GPT was called with the correct parameters (all 30 previous messages + new user message)
     api_call_messages = mock_send_gpt_request.call_args[0][0]
