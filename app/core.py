@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import time  # Add time module for logging timestamps
 import datetime
 import base64
@@ -27,14 +28,12 @@ def extract_body(event):
     except json.JSONDecodeError:
         return {}
 
-def response_error(status_code, message):
-    """Return standardized error response."""
-    return {
-        'statusCode': status_code,
-        'body': message
-    }
+@dataclass
+class Response:
+    status_code: int
+    body: str
 
-async def process_audio_logic(event):
+async def process_audio_logic(event) -> Response:
     start_time = time.time()
 
     try:
@@ -44,7 +43,10 @@ async def process_audio_logic(event):
         log_time("Body extraction", body_extraction_start)
 
         if 'audio_data' not in body:
-            return response_error(400, 'No audio data found in the request.')
+            return Response(
+                status_code=400,
+                body='No audio data found in the request.'
+            )
 
         audio_decode_start = time.time()
         raw_audio_data = base64.b64decode(body['audio_data'])
@@ -72,25 +74,33 @@ async def process_audio_logic(event):
         # Handle short or normal audio
         if audio_length_seconds < 0.4:
             handling_audio_start = time.time()
-            full_updated_messages, response = await handle_short_audio(user_id, full_messages, active_message_limit, system_prompt)
+            full_updated_messages, audio_content = await handle_short_audio(user_id, full_messages, active_message_limit, system_prompt)
             log_time("Short audio handling", handling_audio_start)
         else:
             handling_audio_start = time.time()
-            full_updated_messages, response = await handle_audio(user_id, raw_audio_data, full_messages, active_message_limit, system_prompt)
+            full_updated_messages, audio_content = await handle_audio(user_id, raw_audio_data, full_messages, active_message_limit, system_prompt)
             log_time("Normal audio handling", handling_audio_start)
 
         # Log session update
         session_update_start = time.time()
         update_user_session(user_id, full_updated_messages)
         log_time("User session update", session_update_start)
-
         log_time("Total process_audio_logic time", start_time)
-        return response
-
+        
+        return Response(
+            status_code=200,
+            body=audio_content
+        )
     except aiohttp.ClientResponseError as e:
-        return response_error(500, f"Error processing audio: {str(e)}")
+        return Response(
+            status_code=500,
+            body=f"Error processing audio: {str(e)}"
+        )
     except Exception as e:
-        return response_error(500, f"Error: {str(e)}")
+        return Response(
+            status_code=500,
+            body=f"Error: {str(e)}"
+        )
 
 
 async def handle_short_audio(user_id, full_messages, active_message_limit, system_prompt):

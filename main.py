@@ -15,20 +15,14 @@ async def upload(request: Request):
     }
     
     response = await core.process_audio_logic(event)
-    
-    if isinstance(response, dict) and 'statusCode' in response and 'body' in response:
-        if response['statusCode'] != 200:
-            raise HTTPException(status_code=response['statusCode'], detail=response['body'])
-        return Response(
-            content=response['body'],
-            media_type="application/json",
-            status_code=response['statusCode']
-        )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.body)
     
     return Response(
-        content=bytes(response),
+        content=bytes(response.body),
         media_type="audio/mpeg",
-        status_code=200
+        status_code=response.status_code
     )
 
 @app.on_event("startup")
