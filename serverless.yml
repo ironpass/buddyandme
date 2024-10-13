@@ -18,6 +18,7 @@ provider:
     DYNAMODB_PROMPTS_TABLE: ${self:custom.dynamodbTable.${self:provider.stage}.prompts}
     AZURE_REGION: ${param:AZURE_REGION}
     AZURE_API_KEY: ${param:AZURE_API_KEY}
+    GROQ_API_KEY: ${param:GROQ_API_KEY}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -30,7 +31,7 @@ provider:
       Action:
         - lambda:GetLayerVersion
       Resource:
-        - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:3
+        - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:10
 
 functions:
   app:
@@ -38,7 +39,7 @@ functions:
     timeout: 30
     memorySize: 3008
     layers:
-      - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:3
+      - arn:aws:lambda:ap-southeast-1:339713051410:layer:ffmpeg-python-layer:10
     events:
       - http:
           path: /

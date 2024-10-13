@@ -253,7 +253,17 @@ async def generate_gpt_response(system_prompt, api_messages):
     """Generate a GPT response based on the system prompt and provided conversation history."""
     # Include the system prompt and call GPT API
     api_messages = [{"role": "system", "content": system_prompt}] + api_messages
-    gpt_response = await send_groq_request(api_messages)
+
+    try:
+        gpt_response = await send_groq_request(api_messages)
+    except Exception as e:
+        print(f"send_groq_request failed with exception: {e}")
+        try:
+            gpt_response = await send_gpt_request(api_messages)
+        except Exception as e2:
+            # If the fallback also fails, raise an exception or handle accordingly
+            print(f"send_gpt_request also failed with exception: {e2}")
+            raise  # Re-raise the exception or handle as needed
     return gpt_response
 
 async def transcribe_audio(raw_audio_data):
