@@ -19,6 +19,7 @@ provider:
     AZURE_REGION: ${param:AZURE_REGION}
     AZURE_API_KEY: ${param:AZURE_API_KEY}
     GROQ_API_KEY: ${param:GROQ_API_KEY}
+    FLOAT16_API_KEY: ${param:FLOAT16_API_KEY}
   iamRoleStatements:
     - Effect: Allow
       Action:

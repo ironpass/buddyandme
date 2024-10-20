@@ -53,3 +53,28 @@ async def send_groq_request(messages):
                 response.raise_for_status()
             json_response = await response.json()
             return json_response["choices"][0]["message"]["content"].strip()
+
+
+FLOAT16_API_KEY = os.getenv("FLOAT16_API_KEY")
+FLOAT16_API_BASE = "https://api.float16.cloud/v1"
+
+def send_float16_request(messages):
+    # Prepare request data with full message history for this scenario
+        request_data = {
+            "model": "Seallm-7b-v3",
+            "messages": messages,
+        }
+        
+        # Send the request
+        response = requests.post(
+            f"{FLOAT16_API_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {FLOAT16_API_KEY}", "Content-Type": "application/json"},
+            json=request_data
+        )
+        
+        if response.status_code == 200:
+            response_text = response.json()['choices'][0]['message']['content']
+        else:
+            response_text = f"Error {response.status_code}: {response.text}"
+            
+        return response_text

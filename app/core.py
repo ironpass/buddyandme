@@ -9,7 +9,7 @@ import os
 from .db import get_user_session, update_user_session, get_user_system_prompt
 from .audio_processing import calculate_audio_length, add_wav_header, amplify_pcm_audio, compress_to_mp3
 from .stt_requests import send_azure_stt_request
-from .llm_requests import send_gpt_request, send_groq_request
+from .llm_requests import send_gpt_request, send_float16_request
 from .tts_requests import send_azure_tts_request
 from .prompts import DEFAULT_SYSTEM_PROMPT
 
@@ -255,9 +255,9 @@ async def generate_gpt_response(system_prompt, api_messages):
     api_messages = [{"role": "system", "content": system_prompt}] + api_messages
 
     try:
-        gpt_response = await send_groq_request(api_messages)
+        gpt_response = await send_float16_request(api_messages)
     except Exception as e:
-        print(f"send_groq_request failed with exception: {e}")
+        print(f"send_float16_request failed with exception: {e}")
         try:
             gpt_response = await send_gpt_request(api_messages)
         except Exception as e2:
@@ -286,7 +286,7 @@ async def convert_text_to_audio_and_respond(assistant_response):
     log_time("Audio TTS", audio_tts_start)
 
     audio_processing_start = time.time()
-    tts_audio_data = amplify_pcm_audio(tts_audio_data, factor=12)
+    tts_audio_data = amplify_pcm_audio(tts_audio_data, factor=3)
     compressed_audio = compress_to_mp3(tts_audio_data, sample_rate=24000, bitrate='32k')
     log_time("Audio Processing", audio_processing_start)
     return compressed_audio
