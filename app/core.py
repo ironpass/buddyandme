@@ -6,7 +6,7 @@ import json
 import aiohttp
 import aiofiles
 import os
-from .db import get_user_session, update_user_session, get_user_system_prompt
+from .db import get_user_session, update_user_session, get_user_system_prompt, update_user_system_prompt
 from .audio_processing import calculate_audio_length, add_wav_header, amplify_pcm_audio, compress_to_mp3
 from .stt_requests import send_azure_stt_request
 from .llm_requests import send_gpt_request, send_float16_request
@@ -55,6 +55,19 @@ async def process_audio_logic(event) -> Response:
         system_prompt = system_prompt_data.get("SystemPrompt") or DEFAULT_SYSTEM_PROMPT
         active_message_limit = system_prompt_data.get("ActiveMessageLimit") or 10
         daily_rate_limit = system_prompt_data.get("DailyRateLimit") or 100
+        whitelist = system_prompt_data.get("Whitelist") or False
+        if (not whitelist):
+            update_user_system_prompt(
+                user_id,
+                system_prompt,
+                active_message_limit,
+                daily_rate_limit,
+                whitelist
+            )
+            return Response(
+                status_code=400,
+                body='Not whitelisted.'
+            )
         log_time("System prompt retrieval", prompt_retrieval_start)
 
         if(is_rate_limit_reached(full_messages, daily_rate_limit)):
@@ -255,7 +268,8 @@ async def generate_gpt_response(system_prompt, api_messages):
     api_messages = [{"role": "system", "content": system_prompt}] + api_messages
 
     try:
-        gpt_response = await send_float16_request(api_messages)
+        gpt_response = await send_gpt_request(api_messages)
+        # gpt_response = await send_float16_request(api_messages)
     except Exception as e:
         print(f"send_float16_request failed with exception: {e}")
         try:

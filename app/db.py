@@ -1,6 +1,8 @@
 import boto3
 import os
 from botocore.exceptions import ClientError
+from datetime import datetime
+
 
 # Environment Variables
 DYNAMODB_MESSAGES_TABLE = os.getenv("DYNAMODB_MESSAGES_TABLE", 'UserMessages')
@@ -36,22 +38,35 @@ def get_user_system_prompt(user_id):
         response = prompts_table.get_item(Key={'UserID': user_id})
         item = response.get('Item', None)
         
+        # If user does not exist, return None for every fields
         if not item:
-            # If user does not exist, return None for both fields
-            return {"SystemPrompt": None, "ActiveMessageLimit": None}
+            return {"SystemPrompt": None, "ActiveMessageLimit": None, "DailyRateLimit": None, "Whitelist": None}
         
         system_prompt = item.get('SystemPrompt', None)
         active_message_limit = item.get('ActiveMessageLimit', None)
         daily_rate_limit = item.get('DailyRateLimit', None) 
+        whitelist = item.get('Whitelist', None) 
         
-        return {"SystemPrompt": system_prompt, "ActiveMessageLimit": active_message_limit, "DailyRateLimit": daily_rate_limit}
+        return {
+            "SystemPrompt": system_prompt,
+            "ActiveMessageLimit": active_message_limit,
+            "DailyRateLimit": daily_rate_limit,
+            "Whitelist": whitelist,
+        }
     except ClientError as e:
         print("GET_USER_SYSTEM_PROMPT: ", e.response['Error']['Message'])
-        return {"SystemPrompt": None, "ActiveMessageLimit": None}
+        return {"SystemPrompt": None, "ActiveMessageLimit": None, "DailyRateLimit": None, "Whitelist": None}
 
-# Unused for now
-def update_user_system_prompt(user_id, system_prompt, active_message_limit):
+def update_user_system_prompt(user_id, system_prompt, active_message_limit, daily_rate_limit, whitelist):
     try:
-        prompts_table.put_item(Item={'UserID': user_id, 'SystemPrompt': system_prompt, 'ActiveMessageLimit': active_message_limit})
+        updated_date = datetime.utcnow().isoformat()
+        prompts_table.put_item(Item={
+            'UserID': user_id,
+            'SystemPrompt': system_prompt,
+            'ActiveMessageLimit': active_message_limit,
+            "DailyRateLimit": daily_rate_limit,
+            'Whitelist': whitelist,
+            'UpdatedDate': updated_date,
+        })
     except ClientError as e:
         print("UPDATE_USER_SYSTEM_PROMPT: ", e.response['Error']['Message'])

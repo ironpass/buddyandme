@@ -66,7 +66,7 @@ resources:
       Properties:
         TableName: ${self:custom.dynamodbTable.${self:provider.stage}.prompts}
         AttributeDefinitions:
-          - AttributeName: UserID
+          - AttributeName: UserID 
             AttributeType: S
         KeySchema:
           - AttributeName: UserID

@@ -152,17 +152,24 @@ def test_update_user_system_prompt(dynamodb_client):
     _, prompts_table = dynamodb_client
     user_id = 'test_user'
     new_prompt = 'You are a playful teddy bear.'
-    new_limit = 20
+    new_active_message_limit = 20
+    new_daily_rate_limit = 10000
+    new_whitelist = True
 
     # Test update_user_system_prompt
-    update_user_system_prompt(user_id, new_prompt, new_limit)
+    update_user_system_prompt(user_id, new_prompt, new_active_message_limit, new_daily_rate_limit, new_whitelist)
 
     response = prompts_table.get_item(Key={'UserID': user_id})
-    stored_prompt = response.get('Item', {}).get('SystemPrompt', '')
-    stored_limit = response.get('Item', {}).get('ActiveMessageLimit', 10)  # Default is 10
+    stored_prompt = response.get('Item', {}).get('SystemPrompt')
+    stored_limit = response.get('Item', {}).get('ActiveMessageLimit')
+    stored_active_message_limit = response.get('Item', {}).get('ActiveMessageLimit')
+    stored_daily_rate_limit = response.get('Item', {}).get('DailyRateLimit')
+    stored_whitelist = response.get('Item', {}).get('Whitelist')
 
     assert stored_prompt == new_prompt
-    assert stored_limit == new_limit
+    assert stored_active_message_limit == new_active_message_limit
+    assert stored_daily_rate_limit == new_daily_rate_limit
+    assert stored_whitelist == new_whitelist
 
 if __name__ == '__main__':
     pytest.main()
