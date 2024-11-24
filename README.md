@@ -10,7 +10,7 @@ cd into the dynamodb-admin
 `DYNAMO_ENDPOINT=localhost:8001 npm start`
 
 Do this to run locally
-`uvicorn main:app --host 0.0.0.0 --port 8002`
+`python -m uvicorn main:app --host 0.0.0.0 --port 8002`
 
 For test please run
 `pytest test/*`

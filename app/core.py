@@ -12,6 +12,7 @@ from .stt_requests import send_azure_stt_request
 from .llm_requests import send_gpt_request, send_float16_request
 from .tts_requests import send_azure_tts_request
 from .prompts import DEFAULT_SYSTEM_PROMPT
+from .utils import format_text_response
 
 def log_time(message, start_time):
     """Helper function to log elapsed time with a message."""
@@ -180,6 +181,8 @@ async def handle_transcription(user_id, transcription, full_messages, active_mes
     gpt_start = time.time()
     gpt_response = await generate_gpt_response(system_prompt, append_message(limited_messages, transcription, "user", verbose=False))
     log_time("GPT response for transcription", gpt_start)
+
+    gpt_response = format_text_response(gpt_response)
 
     full_messages = append_message(full_messages, transcription, "user")
     full_messages = append_message(full_messages, gpt_response, "assistant")
